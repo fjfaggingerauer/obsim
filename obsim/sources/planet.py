@@ -33,80 +33,136 @@ def relative_radial_velocity(orbital_period, sma, orbital_phase, inclination):
 def radial_velocity(v_sys, relative_radial_velocity):
     return v_sys + relative_radial_velocity
 
+
 class Planet(Source):
+    '''
+    Class for simulating a Planet as input Source.
+
+    Parameters
+    ----------
+    wavelengths: UnitField
+        Wavelengths at which the simulation is done and the spectral model
+        should be evaluated.
+    location: astropy.SkyCoord or astropy.units.Quantity
+        Location of the star in sky coordinates or w.r.t. the telescope 
+        pointing (e.g. (0, 0) puts it in the center of the field of view).
+
+    PropertyList Parameters
+    -----------------------
+    radius: float or astropy.units.Quantity
+        Radius of the star in Jupiter radii or with specified units
+    temperature: float or astropy.units.Quantity
+        Temperature of the star in K or with specified units
+    mass: float or astropy.units.Quanity
+        Mass of the star in Jupiter mass or with specified units
+    surface gravity: float or astropy.unit.Quantity
+        Surface gravity of the star in cm/s^2 or with specified units
+    sma: float or astropy.units.Quantity
+        Semi-major axis of the planet orbit in AU or with specified units
+    inclination: float or astropy.units.Quantity
+        Inclination of the planet orbit in degree or with specified units
+    host: obsim.sources.Star
+        Host star of the planet
+    distance: float or astropy.units.Quantity
+        Distance of the star in parsec or with specified units
+    radial_velocity: float or astropy.unitss.Quantity
+        Radial velocity of the host planet w.r.t. the observer in km/s or with
+        specified units
+    relative_radial_velocity: float or astropy.unit.Quantity
+        Radial velocity of the host planet w.r.t. the host star in km/s or with
+        specified units
+    reference_time: float or astropy.units.Quantity
+        Time offset for the planet orbit
+    current_time: float or astropy.units.Quantity
+        Current time used to calculate the planet's position
+    orbital_phase: float or astropy.units.Quantity
+        Orbital phase of the planet's orbit in radians
+    orbital_period: float or astropy.units.Quantity
+        Orbital period of the planet in years
+    '''
     property_list = {
-        'radius' : {
-            'unit' : default_units.length,
+        'radius': {
+            'unit': u.R_jup,
         },
-        'temperature' : {
-            'unit' : default_units.temperature,
+        'temperature': {
+            'unit': default_units.temperature,
         },
-        'reference_time' : {
-            'unit' : default_units.time,
-            'default' : 0
+        'mass': {
+            'unit': u.M_jup,
         },
-        'current_time' : {
-            'unit' : default_units.time,
-            'default' : 0
+        'surface_gravity': {
+            'unit': u.cm/u.s**2,
+            'functions': [(surface_gravity, ('mass', 'radius'))]
         },
-        'sma' : { # semi-major axis/average separation
-            'unit' : default_units.length,
+        'sma': {
+            'unit': u.AU,
         },
-        'inclination' : {
-            'unit' : default_units.angle,
-            'default' : 0*u.deg,
+        'inclination': {
+            'unit': u.deg,
+            'default': 0*u.deg,
         },
-        'mass' : {
-            'unit' : default_units.mass,
+        'host': {
+            'type': Star,
         },
-        'host' : {
-            'type' : Star,
+        'distance': {
+            'unit': u.pc,
+            'functions': [(id, ("host.distance",))]
         },
-        'distance' : {
-            'unit' : default_units.length,
-            'functions' : [(id, ("host.distance",))]
+        'reference_time': {
+            'unit': default_units.time,
+            'default': 0
         },
-        'orbital_phase' : {
-            'unit' : default_units.angle,
-            'functions' : [(orbital_phase, ("current_time", "reference_time", "orbital_period"))]
+        'current_time': {
+            'unit': default_units.time,
+            'default': 0
         },
-        'relative_location' : {
-            'unit' : default_units.angle,
-            'functions' : [(relative_angular_position, ('sma', 'orbital_phase', 'distance', 'inclination'))]
+        'orbital_phase': {
+            'unit': default_units.angle,
+            'functions': [(orbital_phase, ("current_time", "reference_time",
+                                           "orbital_period"))]
         },
-        'orbital_period' : {
-            'unit' : default_units.time,
-            'functions' : [(keplerian_period, ("host.mass", "sma"))]
+        'relative_location': {
+            'unit': default_units.angle,
+            'functions': [(relative_angular_position, ('sma', 'orbital_phase',
+                                                       'distance',
+                                                       'inclination'))]
         },
-        'relative_radial_velocity' : {
-            'unit' : default_units.velocity,
-            'functions' : [(relative_radial_velocity, ('orbital_period', 'sma', 'orbital_phase', 'inclination'))],
+        'orbital_period': {
+            'unit': u.yr,
+            'functions': [(keplerian_period, ("host.mass", "sma"))]
         },
-        'radial_velocity' : {
-            'unit' : default_units.velocity,
-            'functions' : [(radial_velocity, ('host.radial_velocity', 'relative_radial_velocity'))],
+        'relative_radial_velocity': {
+            'unit': u.km/u.s,
+            'functions': [(relative_radial_velocity, ('orbital_period', 'sma',
+                                                      'orbital_phase',
+                                                      'inclination'))],
         },
-        'surface_gravity' : {
-            'unit' : default_units.length/default_units.time**2,
-            'functions' : [(surface_gravity, ('mass', 'radius'))]
+        'radial_velocity': {
+            'unit': u.km/u.s,
+            'functions': [(radial_velocity, ('host.radial_velocity',
+                                             'relative_radial_velocity'))],
         },
-        '_location' : {
-            'unit' : default_units.angle,
-            'functions' : [(total_position, ("relative_location", "host.location"))]
+        '_location': {
+            'unit': default_units.angle,
+            'functions': [(total_position, ("relative_location",
+                                            "host.location"))]
         }
     }
+
     def __init__(self, wavelengths=None, location=None, **kwargs):
         make_properties(self, self.property_list, kwargs)
         super().__init__(wavelengths, location)
-    
+
     def evolve(self, evolve_parameters):
         if self.properties.orbital_phase.is_set:
-            # convert orbital phase to reference time so updating time is not overwritten by constant orbital phase
+            # convert orbital phase to reference time so updating time is not
+            # overwritten by constant orbital phase
             p = self.orbital_phase
             self.orbital_phase = None
-            self.reference_time = -p.to(u.rad).value/(2*np.pi) * self.orbital_period
-        
+            self.reference_time = -p.to(u.rad).value/(2*np.pi) * \
+                self.orbital_period
+
         self.current_time += evolve_parameters['timestep']
-    
+
     def reset(self):
         self.current_time = 0 * simulation_units.time
