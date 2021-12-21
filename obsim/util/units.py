@@ -84,12 +84,12 @@ class UnitChecker:
     @classmethod
     def as_decorator(cls, func=None, **kwargs):
         '''
-        Extends the usage of astropy.unit.quantity_input by not only checking
+        Extends the usage of astropy.units.quantity_input by not only checking
         the units of the function input and generating an error if they are
         inconsistent with the set units, but also attaches the required units
         to an input if it is dimensionless.
 
-        Syntax is the same as astropy.unit.quantity_input
+        Syntax is the same as astropy.units.quantity_input
         '''
         self = cls(**kwargs)
         if func is not None and not kwargs:
@@ -111,11 +111,11 @@ class UnitStripper:
     @classmethod
     def as_decorator(cls, func=None, **kwargs):
         '''
-        Extends the usage of astropy.unit.quantity_input by removing the
+        Extends the usage of astropy.units.quantity_input by removing the
         supplied units from the input after checking them, meaning a set of
         floats is supplied to the underlying function.
 
-        Syntax is the same as astropy.unit.quantity_input
+        Syntax is the same as astropy.units.quantity_input
         '''
         self = cls(**kwargs)
         if func is not None and not kwargs:
