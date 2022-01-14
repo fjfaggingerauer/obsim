@@ -5,11 +5,11 @@ from astropy import constants as const
 from ...util import set_units
 from ...config import default_units
 from ...field import Field
-from ...external import get_PHOENIX_spectrum, get_BT_SETTL_model
+from ...external import get_PHOENIX_spectrum, get_BT_SETTL_spectrum
 from .base import SpectralModel
 from .util import make_spectrum_unit_field
 
-__all__ = ['InterpolatedSpectrum', 'FunctionSpectrum', 'bt_settlSpectrum',
+__all__ = ['InterpolatedSpectrum', 'FunctionSpectrum', 'BT_SETTLSpectrum',
            'PhoenixSpectrum']
 
 
@@ -109,4 +109,40 @@ class bt_settlSpectrum(InterpolatedSpectrum):
                     wl_lims=[0.8*np.min(source.wavelengths), 1.2*np.max(source.wavelengths)])
         spec = spec * source.radius**2/(4*source.distance**2)
         super().__init__(wl, spec)
+        super().initialise_for(source)
+
+class BT_SETTLSpectrum(InterpolatedSpectrum):
+    def __init__(self, data_path: str = 'data',
+                 verbose_initialization: bool = False):
+
+        self.data_path = data_path
+        self.verbose = verbose_initialization
+
+    def initialise_for(self, source):
+        # set doppler shifted wavelengths
+        if hasattr(source, 'radial_velocity'):
+            beta = source.radial_velocity/const.c
+            doppler_factor = np.sqrt((1-beta)/(1+beta))
+        else:
+            doppler_factor = 1
+
+        kwargs = {'min_wl': doppler_factor * source.wavelengths.min(),
+                  'max_wl': doppler_factor * source.wavelengths.max(),
+                  'save_location': self.data_path,
+                  'verbose': self.verbose}
+
+        # find other parameters
+        if hasattr(source, 'temperature'):
+            kwargs['T'] = source.temperature
+        if hasattr(source, 'surface_gravity'):
+            sg = source.surface_gravity.to(u.cm/u.s**2)
+            kwargs['log_g'] = np.log10(sg.value)
+
+        # get distance-corrected spectrum
+        spectrum = get_BT_SETTL_spectrum(**kwargs)
+
+        if hasattr(source, 'radius') and hasattr(source, 'distance'):
+            spectrum = spectrum * source.radius**2/(4*source.distance**2)
+
+        super().__init__(spectrum)
         super().initialise_for(source)
