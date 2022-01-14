@@ -265,11 +265,6 @@ class SkyCalcInterface(object):
 can only be reset to None.")
         self._moon_position = None
 
-    def get_airmass(self, method='simple'):
-        if self.telescope is None:
-            return calculate_airmass(self.target_alt, method)
-        return calculate_airmass(self.pointing.alt, method)
-
     def get_airmass(self):
         if self.telescope is None:
             return calculate_airmass(90*u.deg - self.target_alt)
